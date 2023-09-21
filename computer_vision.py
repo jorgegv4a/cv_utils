@@ -1,5 +1,8 @@
 import cv2
 import numpy as np
+
+from typing import Tuple, Optional, List
+
 from general import args_to_kwargs, default
 
 
@@ -198,7 +201,7 @@ def put_text(img, text, org=None, fontFace=None, fontScale=None, color=None, thi
     return text_w, text_h
 
 
-def imshow(*args):
+def imshow(*args, destroy: bool=True, delay: int=0):
     """
     A wrapper for cv2.imshow: immediately show image until any input is given, allows for omission of window name
     :param window_name: string
@@ -212,20 +215,10 @@ def imshow(*args):
     else:
         raise TypeError(f"imshow takes 1/2 arguments, {len(args)} given.")
 
-    # colors = colors_from_max_hue(30)
-    colors = random_full_hue(20)
-    y0 = 0
-    for color in colors:
-        text_w, text_h = put_text(img, "Rainbows!", color=color, org=(0, y0))
-        y0 += text_h
-
-    line(img, (700, None))
-    circle(img, (500, 500), 20, thickness=-1)
-
-
     cv2.imshow(window_name, img)
-    value = cv2.waitKey(0)
-    cv2.destroyWindow(window_name)
+    value = cv2.waitKey(delay)
+    if destroy:
+        cv2.destroyWindow(window_name)
     return value
 
 
@@ -270,9 +263,37 @@ def resize(img, dsize=None, fx=None, fy=None, interpolation=None):
     return resized_img
 
 
+def window_visible(window_name: str):
+    try:
+        visible = cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) >= 1
+    except:
+        visible = False
+    return visible
+
+
+def add_trackbar(window_name: str, track_name: str, value: List[float], value_min: float, value_max: float, num_steps: int=100):
+    if not window_visible(window_name):
+        cv2.namedWindow(window_name)
+
+    start_value = value[0]
+    step_size = (value_max - value_min) / num_steps
+    start_value_int = round((start_value - value_min) / step_size)
+
+    def callback(new_value_int: int):
+        new_value = new_value_int * step_size + value_min
+        value[0] = new_value
+
+    cv2.createTrackbar(track_name, window_name, start_value_int, num_steps, callback)
+
+
+
 if __name__ == '__main__':
     # hue = hue_from_range(0.5)
     # hsv_to_bgr(hue)
     # cvcolor_from_range(7, 14, min_value=0, start_hue=0, end_hue=179, as_tuple=True)
     img = cv2.imread("/home/mojonero/andres_concentrao.jpg")
-    imshow(img)
+    img = resize(img, fx=0.3)
+    value = [1.0]
+    add_trackbar("andres", "brightness", value, 0, 1.0)
+    while True:
+        imshow("andres", (img * value[0]).astype(np.uint8), destroy=False, delay=1)
