@@ -1,8 +1,9 @@
 import logging
 from general import txt
+from logging.handlers import RotatingFileHandler
 
 
-def get_logger(name=__name__, logfile="asdf.log"):
+def get_logger(name=__name__, logfile="logfile.log"):
     logging.basicConfig(
          filename=logfile,
          level=logging.DEBUG,
@@ -10,6 +11,8 @@ def get_logger(name=__name__, logfile="asdf.log"):
          datefmt='%H:%M:%S'
      )
 
+    handler = RotatingFileHandler(logfile, maxBytes=1024*1024*4, backupCount=1)
+    logging.getLogger('').addHandler(handler)
     console = logging.StreamHandler()
     console.setLevel(logging.DEBUG)
     # set a format which is simpler for console use
