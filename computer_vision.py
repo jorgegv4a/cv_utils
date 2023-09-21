@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Callable
 
-from general import args_to_kwargs, default
+from general import args_to_kwargs, default, clip
 
 
 def hue_from_range(value, max_value=None, min_value=None, start_hue=None, end_hue=None):
@@ -271,20 +271,40 @@ def window_visible(window_name: str):
     return visible
 
 
-def add_trackbar(window_name: str, track_name: str, value: List[float], value_min: float, value_max: float, num_steps: int=100):
+class Trackbar:
+    def __init__(self, track_name: str, value: float, value_min: float, value_max: float, num_steps: int=100, custom_cb: Optional[Callable]=None):
+        self.track_name: str = track_name
+        self._start_value: float = value
+        self.value: float = value
+        self.value_min: float = value_min
+        self.value_max: float = value_max
+        self.num_steps: int = num_steps
+        self.custom_cb = custom_cb
+
+        self.step_size = (self.value_max - self.value_min) / self.num_steps
+
+    def as_int(self, value: float):
+        return clip(round((value - self.value_min) / self.step_size), 0, self.num_steps)
+
+    def as_float(self, value: int):
+        return value * self.step_size + self.value_min
+
+    @property
+    def start_value(self):
+        return self.as_int(self._start_value)
+
+    def callback(self, new_value_int: int):
+        value = self.as_float(new_value_int)
+        if self.custom_cb:
+            value = self.custom_cb(value)
+        self.value = value
+
+
+def add_trackbar(window_name: str, trackbar: Trackbar):
     if not window_visible(window_name):
         cv2.namedWindow(window_name)
 
-    start_value = value[0]
-    step_size = (value_max - value_min) / num_steps
-    start_value_int = round((start_value - value_min) / step_size)
-
-    def callback(new_value_int: int):
-        new_value = new_value_int * step_size + value_min
-        value[0] = new_value
-
-    cv2.createTrackbar(track_name, window_name, start_value_int, num_steps, callback)
-
+    cv2.createTrackbar(trackbar.track_name, window_name, trackbar.start_value, trackbar.num_steps, trackbar.callback)
 
 
 if __name__ == '__main__':
@@ -293,7 +313,15 @@ if __name__ == '__main__':
     # cvcolor_from_range(7, 14, min_value=0, start_hue=0, end_hue=179, as_tuple=True)
     img = cv2.imread("/home/mojonero/andres_concentrao.jpg")
     img = resize(img, fx=0.3)
-    value = [1.0]
-    add_trackbar("andres", "brightness", value, 0, 1.0)
+    r_tb = Trackbar("r", 1.0, 0, 1.0)
+    g_tb = Trackbar("g", 1.0, 0, 1.0)
+    b_tb = Trackbar("b", 1.0, 0, 1.0)
+    add_trackbar("andres", r_tb)
+    add_trackbar("andres", g_tb)
+    add_trackbar("andres", b_tb)
     while True:
-        imshow("andres", (img * value[0]).astype(np.uint8), destroy=False, delay=1)
+        img_cp = img.copy()
+        img_cp[..., 0] = (img_cp[..., 0] * b_tb.value).astype(np.uint8)
+        img_cp[..., 1] = (img_cp[..., 1] * g_tb.value).astype(np.uint8)
+        img_cp[..., 2] = (img_cp[..., 2] * r_tb.value).astype(np.uint8)
+        imshow("andres", img_cp, destroy=False, delay=1)
