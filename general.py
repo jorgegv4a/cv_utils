@@ -281,6 +281,10 @@ def txt(text):
     return text + "\x1b[0m"
 
 
+def clip(value: float, min_v: float, max_v: float):
+    return min(max_v, max(min_v, value))
+
+
 if __name__ == "__main__":
     print(txt("Hello %r  Friend!%.  how are you? What '%%' are you at? %by Actually,"))
     print(f"\x1b[{TextForeColor.Cyan.value}mHOla")
