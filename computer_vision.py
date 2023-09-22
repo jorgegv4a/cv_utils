@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 
-from typing import Tuple, Optional, List, Callable
+from typing import Tuple, Optional, List, Callable, TYPE_CHECKING
+from PIL import Image
 
 from general import args_to_kwargs, default
 from math_utils import clip
@@ -353,6 +354,44 @@ def array2d_to_image(data: np.ndarray, log_scale: bool=False) -> np.ndarray:
         data = np.log(data + 1) / np.log(2)
     data = (data * 255).astype(np.uint8)
     return data
+
+
+def pil_to_cv2(image: 'Image'):
+    """
+    Convert a PIL Image to cv2 format (BGR np.ndarray)
+    :param image:
+    :return:
+    """
+    return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+
+def np_to_pil(image):
+    """
+    Convert a cv2 array (BGR np.dnarray) to PIL.Image
+    :param image:
+    :return:
+    """
+    img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    im_pil = Image.fromarray(img)
+    return im_pil
+
+
+def rgb_to_hex_string(color: Tuple[int, int, int]):
+    """
+    Get hex string for a given RGB color tuple
+    :param color:
+    :return:
+    """
+    return '#' + ''.join([f'{ch:02x}' for ch in color])
+
+
+def bgr_to_hex_string(color: Tuple[int, int, int]):
+    """
+    Get hex string for a given BGR color tuple
+    :param color:
+    :return:
+    """
+    return rgb_to_hex_string(color[::-1])
 
 
 if __name__ == '__main__':
