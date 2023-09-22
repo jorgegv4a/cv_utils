@@ -1,7 +1,7 @@
 import queue
 import re
 from enum import Enum
-from queue import LifoQueue, Empty
+from queue import LifoQueue
 from typing import List
 
 

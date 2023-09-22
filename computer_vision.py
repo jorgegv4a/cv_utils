@@ -3,7 +3,8 @@ import numpy as np
 
 from typing import Tuple, Optional, List, Callable
 
-from general import args_to_kwargs, default, clip
+from general import args_to_kwargs, default
+from math_utils import clip
 
 
 def hue_from_range(value, max_value=None, min_value=None, start_hue=None, end_hue=None):
