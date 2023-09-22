@@ -281,8 +281,22 @@ def txt(text):
     return text + "\x1b[0m"
 
 
-def clip(value: float, min_v: float, max_v: float):
-    return min(max_v, max(min_v, value))
+def flatten_iter(obj):
+    """
+    Iteratively flatten a list of lists [of lists ...] into a list of items
+    :param obj:
+    :return:
+    """
+    result = []
+    if isinstance(obj, list):
+        for x in obj:
+            flat = flatten_iter(x)
+            if isinstance(flat, list):
+                result.extend(flat)
+            else:
+                result.append(flat)
+        return result
+    return obj
 
 
 if __name__ == "__main__":
