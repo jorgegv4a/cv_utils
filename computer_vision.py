@@ -265,6 +265,11 @@ def resize(img, dsize=None, fx=None, fy=None, interpolation=None):
 
 
 def window_visible(window_name: str):
+    """
+    Checks whether a cv2 window exists
+    :param window_name:
+    :return:
+    """
     try:
         visible = cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) >= 1
     except:
@@ -274,6 +279,18 @@ def window_visible(window_name: str):
 
 class Trackbar:
     def __init__(self, track_name: str, value: float, value_min: float, value_max: float, num_steps: int=100, custom_cb: Optional[Callable]=None):
+        """
+        Helper class for creating variables whose value changes by a cv2 trackbar.
+        "Native scale" being the arbitrary units for the variable are mapped to "int scale" on the slider.
+
+        :param track_name: trackbar name
+        :param value: initial value, in native scale. Will be adjusted to the closes possible int on the slider
+        for the given resolution
+        :param value_min: minimum value in native units
+        :param value_max: maximum value in native units
+        :param num_steps: Number of positions on the slider, determines the resolution. Defaults to 100
+        :param custom_cb: Optional callback expecting a single arg for the new value of the variable in native units
+        """
         self.track_name: str = track_name
         self._start_value: float = value
         self.value: float = value
@@ -302,10 +319,40 @@ class Trackbar:
 
 
 def add_trackbar(window_name: str, trackbar: Trackbar):
+    """
+    Adds a Trackbar for a named window. Creates the window if it doesn't exist
+    :param window_name: window name
+    :param trackbar: Trackbar object to be added
+    :return:
+    """
     if not window_visible(window_name):
         cv2.namedWindow(window_name)
 
     cv2.createTrackbar(trackbar.track_name, window_name, trackbar.start_value, trackbar.num_steps, trackbar.callback)
+
+
+def interp_2d_to_new_shape(old_array: np.ndarray, new_shape: Tuple[int, int]) -> np.ndarray:
+    """
+    Interpolate a 2d array / img to a new shape
+    :param old_array:
+    :param new_shape: (width, height)
+    :return:
+    """
+    return resize(old_array, new_shape, order=3)
+
+
+def array2d_to_image(data: np.ndarray, log_scale: bool=False) -> np.ndarray:
+    """
+    Applies min-max normalization on :data: and remaps to np.uint8 range to create an image cv2 can show
+    :param data: image data
+    :param log_scale: if True will apply log compression
+    :return:
+    """
+    data = (data - data.min()) / (data.max() - data.min())
+    if log_scale:
+        data = np.log(data + 1) / np.log(2)
+    data = (data * 255).astype(np.uint8)
+    return data
 
 
 if __name__ == '__main__':
