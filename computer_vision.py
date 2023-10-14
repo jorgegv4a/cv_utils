@@ -1,4 +1,5 @@
 import cv2
+import skimage
 import numpy as np
 
 from typing import Tuple, Optional, List, Callable, TYPE_CHECKING
@@ -332,14 +333,14 @@ def add_trackbar(window_name: str, trackbar: Trackbar):
     cv2.createTrackbar(trackbar.track_name, window_name, trackbar.start_value, trackbar.num_steps, trackbar.callback)
 
 
-def interp_2d_to_new_shape(old_array: np.ndarray, new_shape: Tuple[int, int]) -> np.ndarray:
+def interp_2d_to_new_shape(old_array: np.ndarray, new_shape: Tuple[int, int], order: int=3) -> np.ndarray:
     """
     Interpolate a 2d array / img to a new shape
     :param old_array:
-    :param new_shape: (width, height)
+    :param new_shape: (height, width)
     :return:
     """
-    return resize(old_array, new_shape, order=3)
+    return skimage.transform.resize(old_array, new_shape, order=order)
 
 
 def array2d_to_image(data: np.ndarray, log_scale: bool=False) -> np.ndarray:
