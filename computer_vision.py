@@ -94,7 +94,7 @@ def random_full_hue(count=None):
     return [cvcolor_from_range(hue) for hue in hues]
 
 
-def line(img, pt1, pt2=None, color=None, thickness=None, lineType=None, shift=None):
+def line(img, pt1, pt2=None, color=None, thickness=None, line_type=None, shift=None):
     """
     A wrapper for cv2.line: converts points to int. If only one of the points is given, asumes vertical/horizontal line.
     Takes the same arguments as cv2.line, will add default values to any argument beyond :pt2:
@@ -103,7 +103,7 @@ def line(img, pt1, pt2=None, color=None, thickness=None, lineType=None, shift=No
     :param pt2:
     :param color:
     :param thickness:
-    :param lineType:
+    :param line_type:
     :param shift:
     :return:
     """
@@ -124,13 +124,13 @@ def line(img, pt1, pt2=None, color=None, thickness=None, lineType=None, shift=No
     pt2 = tuple([int(x) for x in pt2])
     color = default(color, (0, 0, 255))
     thickness = default(thickness, 2)
-    lineType = default(lineType, cv2.LINE_AA)
+    line_type = default(line_type, cv2.LINE_AA)
     shift = default(shift, 0)
 
-    cv2.line(img, pt1, pt2, color, thickness, lineType, shift)
+    cv2.line(img, pt1, pt2, color, thickness, line_type, shift)
 
 
-def circle(img, center, radius=None, color=None, thickness=None, lineType=None, shift=None):
+def circle(img, center, radius=None, color=None, thickness=None, line_type=None, shift=None):
     """
     A wrapper for cv2.circle: converts :center: to int, assumes radius 1 if unspecified.
     Takes the same arguments as cv2.circle, will add default values to any argument beyond :center:
@@ -144,13 +144,13 @@ def circle(img, center, radius=None, color=None, thickness=None, lineType=None, 
     radius = default(radius, 1)
     color = default(color, (0, 0, 255))
     thickness = default(thickness, 2)
-    lineType = default(lineType, cv2.LINE_AA)
+    line_type = default(line_type, cv2.LINE_AA)
     shift = default(shift, 0)
 
-    cv2.circle(img, center, radius, color, thickness, lineType, shift)
+    cv2.circle(img, center, radius, color, thickness, line_type, shift)
 
 
-def rectangle(img, pt1, pt2, color=None, thickness=None, lineType=None, shift=None):
+def rectangle(img, pt1, pt2, color=None, thickness=None, line_type=None, shift=None):
     """
     A wrapper for cv2.rectangle: converts points to int.
     Takes the same arguments as cv2.rectangle, will add default values to any argument beyond :pt2:
@@ -159,7 +159,7 @@ def rectangle(img, pt1, pt2, color=None, thickness=None, lineType=None, shift=No
     :param pt2:
     :param color:
     :param thickness:
-    :param lineType:
+    :param line_type:
     :param shift:
     :return:
     """
@@ -167,13 +167,13 @@ def rectangle(img, pt1, pt2, color=None, thickness=None, lineType=None, shift=No
     pt2 = tuple([int(x) for x in pt2])
     color = default(color, (0, 0, 255))
     thickness = default(thickness, 2)
-    lineType = default(lineType, cv2.LINE_AA)
+    line_type = default(line_type, cv2.LINE_AA)
     shift = default(shift, 0)
 
-    cv2.rectangle(img, pt1, pt2, color, thickness, lineType, shift)
+    cv2.rectangle(img, pt1, pt2, color, thickness, line_type, shift)
 
 
-def put_text(img, text, org=None, fontFace=None, fontScale=None, color=None, thickness=None, lineType=None):
+def put_text(img, text, org=None, font_face=None, font_scale=None, color=None, thickness=None, line_type=None):
     """
     A wrapper for cv2.putText: converts origin to int, and if unspecified set the position of the text
     in the top left corner of the screen such that the full text can be seen.
@@ -185,21 +185,21 @@ def put_text(img, text, org=None, fontFace=None, fontScale=None, color=None, thi
     :return:
     """
     org = default(org, None)
-    fontFace = default(fontFace, cv2.FONT_HERSHEY_SIMPLEX)
-    fontScale = default(fontScale, 1)
+    font_face = default(font_face, cv2.FONT_HERSHEY_SIMPLEX)
+    font_scale = default(font_scale, 1)
     color = default(color, (0, 0, 255))
     thickness = default(thickness, 2)
-    lineType = default(lineType, cv2.LINE_AA)
+    line_type = default(line_type, cv2.LINE_AA)
     text = str(text)
 
-    (text_w, text_h), baseline = cv2.getTextSize(text, fontFace, fontScale, thickness)
+    (text_w, text_h), baseline = cv2.getTextSize(text, font_face, font_scale, thickness)
     if org is None or org[1] < text_h:
         org = (0, text_h)
         text_h *= 2
     else:
         org = [int(x) for x in org]
 
-    cv2.putText(img, text, org, fontFace, fontScale, color, thickness, lineType)
+    cv2.putText(img, text, org, font_face, font_scale, color, thickness, line_type)
 
     return text_w, text_h
 
