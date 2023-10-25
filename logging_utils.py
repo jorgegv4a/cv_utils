@@ -70,9 +70,11 @@ class TimedBlock:
         values = sorted(values, key=lambda x: x[0])
         for total, name, num, mean, std in values:
             exp_value = int(np.floor(np.log(mean) / np.log(1000)))
-            mean_formatted = f"{mean * 1000 ** (-exp_value):.2f} · 10^{exp_value * 3}"
+            mean_formatted = f"{txt(f'%yki{mean * 1000 ** (-exp_value):8.2f}')} · 10^{exp_value * 3}"
             std_normal = std / mean * 100
-            logger.debug(f"{name} | mean: {mean_formatted}s (+- {std_normal:.2f}%) | # {num} | total: {total:.4f}s")
+            mean_str = f"mean: {mean_formatted:<16}s (+- {std_normal:6.2f}%)"
+            total_str = f"total: {txt(f'%ykb{total:8.4f}s')}"
+            logger.debug(f"{txt(f'%m  {name:<40}')} | {mean_str:<32} | # {txt(f'%y  {num:<8}')} | {total_str:<16}")
 
 
 if __name__ == "__main__":
@@ -82,3 +84,6 @@ if __name__ == "__main__":
     logger.debug(txt("Hello %rkiWorld"))
     logger.debug(txt("Hello %rkbWorld%.k., how are you?"))
     logger.debug(txt("Hello %rkiWorld"))
+    with TimedBlock("test"):
+        time.sleep(0.1)
+    TimedBlock.stats()
