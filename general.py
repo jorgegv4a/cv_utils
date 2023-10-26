@@ -303,3 +303,4 @@ if __name__ == "__main__":
     print(txt("Hello %r  Friend!%.  how are you? What '%%' are you at? %by Actually,"))
     print(f"\x1b[{TextForeColor.Cyan.value}mHOla")
     print(f"\x1b[{TextStyle.Bold.value};{TextForeColor.Cyan.value}mHOla")
+    print_format_table()
