@@ -2,7 +2,34 @@ import queue
 import re
 from enum import Enum
 from queue import LifoQueue
-from typing import List
+from typing import List, Callable, Optional, Any
+from multiprocessing import Queue, Event, Process
+
+
+class LatestResultFetcher:
+    def __init__(self, method: Callable, q_size: int = 1):
+        self.method: Callable = method
+        self.latest_result: Optional[Any] = None
+        self.queue: Queue = Queue(q_size)
+        self.consumer_ready: Event = Event()
+        self.consumer_done: Event = Event()
+
+        self.process: Process = Process(target=method, args=(self.queue, self.consumer_ready, self.consumer_done))
+        self.process.start()
+
+    def get_latest_result(self, timeout: Optional[float] = None) -> Optional[Any]:
+        if self.consumer_done.is_set():
+            return None
+
+        self.consumer_ready.set()
+
+        try:
+            value = self.queue.get(timeout=timeout)
+        except queue.Empty:
+            return self.latest_result
+
+        self.latest_result = value
+        return self.latest_result
 
 
 def args_to_kwargs(defaults, *args, **kwargs):
