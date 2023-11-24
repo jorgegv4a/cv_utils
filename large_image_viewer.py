@@ -45,6 +45,9 @@ class LargeImageViewer:
         self.x: int = self.width // 2
         self.y: int = self.height // 2
 
+        self.mouse_x: Optional[int] = None
+        self.mouse_y: Optional[int] = None
+
         self.interp_order = 0
         self.background_color = 255 if len(full_image.shape) < 3 else (0, 80, 0)
 
@@ -133,8 +136,18 @@ class LargeImageViewer:
     def is_wide(self) -> bool:
         return self.ar > 1
 
-    def mouse_cb(self, event: int, x: int, y: int, flags: int, param: Any):
-        pass
+    def mouse_cb(self, event: int, local_x: int, local_y: int, flags: int, param: Any):
+        raw_x = self.local_x_to_raw(local_x)
+        raw_y = self.local_y_to_raw(local_y)
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.x = raw_x
+            self.y = raw_y
+
+            self.mouse_x = raw_x
+            self.mouse_y = raw_y
+        elif event == cv2.EVENT_MOUSEMOVE:
+            self.mouse_x = raw_x
+            self.mouse_y = raw_y
 
     def manage_input(self, input_type: Input):
         if input_type == Input.MOVE_UP:
@@ -180,6 +193,18 @@ class LargeImageViewer:
         cv2.namedWindow(self.side_window)
         cv2.setWindowTitle(self.side_window, self.side_window_title)
 
+    def local_x_to_raw(self, local_x: int) -> int:
+        return self.raw_x0 + int(local_x * 2 * self.scale)
+
+    def local_y_to_raw(self, local_y: int) -> int:
+        return self.raw_y0 + int(local_y * 2 * self.scale)
+
+    def raw_x_to_local(self, raw_x: int) -> int:
+        return int((raw_x - self.raw_x0) / (2 * self.scale))
+
+    def raw_y_to_local(self, raw_y: int) -> int:
+        return int((raw_y - self.raw_y0) / (2 * self.scale))
+
     def pad_crop(self, crop) -> np.ndarray:
         padded_image = cv2.copyMakeBorder(crop, self.top_pad, self.bottom_pad, self.left_pad, self.right_pad, cv2.BORDER_CONSTANT, value=(0, 0, 255))
         return padded_image
@@ -197,6 +222,8 @@ class LargeImageViewer:
         side_image = self.mini_image.copy()
         rectangle(side_image, (self.x0 // self.side_image_scale, self.y0 // self.side_image_scale), (self.x1 // self.side_image_scale, self.y1 // self.side_image_scale))
         put_text(side_image, f"Zoom: {self.zoom_scale:.2f}", font_scale=0.5, color=(0, 0, 255))
+        if self.mouse_x and self.mouse_y:
+            put_text(side_image, f"({self.mouse_x:>5}, {self.mouse_y:>5})", (0, 40), font_scale=0.5, color=(0, 0, 0))
         cv2.imshow(self.side_window, side_image)
 
         cv2.imshow(self.window, showable_image)
