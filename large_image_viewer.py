@@ -23,13 +23,16 @@ class Input(Enum):
 
 class LargeImageViewer:
     """
-    clipped_x0, clipped_y0, clipped_x0, clipped_y1 are the viewing extends, the coordinates of the full image we are sampling
+    clipped_abs_x0, clipped_abs_y0, clipped_abs_x0, clipped_abs_y1 are the viewing extends, the coordinates of the full image we are sampling
     height, width are the dimensions of the full image
     zoom_scale equals the magnification of the full image (ie, >1 is zooming in)
 
     """
     def __init__(self, full_image: np.ndarray, canvas_height: int, canvas_width: int, window_title: Optional[str] = None):
         self.full_image: np.ndarray = full_image
+        self.high_res_image: np.ndarray = full_image.copy()
+        self.low_res_image: np.ndarray = cv2.pyrDown(cv2.pyrDown(cv2.pyrDown(cv2.pyrDown(full_image))))
+
         self.side_image_scale = max(self.full_image.shape) / 800
         self.mini_image: np.ndarray = cv2.resize(full_image, None, fx=1 / self.side_image_scale, fy=1 / self.side_image_scale)
 
@@ -120,19 +123,35 @@ class LargeImageViewer:
         return self.ar_scale / self.zoom_scale
 
     @property
-    def clipped_x0(self) -> int:
+    def clipped_x0(self) -> float:
+        return clip(self.image_x0, 0, 1)
+
+    @property
+    def clipped_y0(self) -> float:
+        return clip(self.image_y0, 0, 1)
+
+    @property
+    def clipped_x1(self) -> float:
+        return clip(self.image_x1, 0, 1)
+
+    @property
+    def clipped_y1(self) -> float:
+        return clip(self.image_x1, 0, 1)
+
+    @property
+    def clipped_abs_x0(self) -> int:
         return clip(self.image_abs_x0, 0, self.width - 1)
 
     @property
-    def clipped_y0(self) -> int:
+    def clipped_abs_y0(self) -> int:
         return clip(self.image_abs_y0, 0, self.height - 1)
 
     @property
-    def clipped_x1(self) -> int:
+    def clipped_abs_x1(self) -> int:
         return clip(self.image_abs_x1, 0, self.width - 1)
 
     @property
-    def clipped_y1(self) -> int:
+    def clipped_abs_y1(self) -> int:
         return clip(self.image_abs_y1, 0, self.height - 1)
 
     @property
@@ -231,6 +250,29 @@ class LargeImageViewer:
     def image_abs_y_to_canvas_abs(self, image_abs_y: int) -> int:
         return int((image_abs_y - self.image_abs_y0) / self.scale)
 
+    def get_viewing_crop(self, image: np.ndarray) -> np.ndarray:
+        height, width = image.shape[:2]
+        abs_x0 = int(self.image_x0 * width)
+        abs_x1 = int(self.image_x1 * width)
+        abs_y0 = int(self.image_y0 * height)
+        abs_y1 = int(self.image_y1 * height)
+
+        clip_x0 = clip(abs_x0, 0, width)
+        clip_x1 = clip(abs_x1, 0, width)
+        clip_y0 = clip(abs_y0, 0, height)
+        clip_y1 = clip(abs_y1, 0, height)
+
+        crop = image[clip_y0: clip_y1, clip_x0: clip_x1]
+
+        left_pad = max(0, -abs_x0)
+        top_pad = max(0, -abs_y0)
+        right_pad = max(0, abs_x1 - width + 1)
+        bottom_pad = max(0, abs_y1 - height + 1)
+
+        padded_image = cv2.copyMakeBorder(crop, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT, value=(0, 0, 255))
+
+        return padded_image
+
     def pad_crop(self, crop) -> np.ndarray:
         padded_image = cv2.copyMakeBorder(crop, self.top_pad, self.bottom_pad, self.left_pad, self.right_pad, cv2.BORDER_CONSTANT, value=(0, 0, 255))
         return padded_image
@@ -239,15 +281,16 @@ class LargeImageViewer:
         view_width = self.max_canvas_width
         view_height = self.max_canvas_height
 
-        crop = self.full_image[self.clipped_y0: self.clipped_y1, self.clipped_x0: self.clipped_x1]
-
-        crop = self.pad_crop(crop)
+        if self.zoom_scale > 6:
+            crop = self.get_viewing_crop(self.high_res_image)
+        else:
+            crop = self.get_viewing_crop(self.low_res_image)
 
         view_image = interp_2d_to_new_shape(crop, (view_height, view_width), order=self.interp_order)
         showable_image = view_image
 
         side_image = self.mini_image.copy()
-        rectangle(side_image, (self.clipped_x0 // self.side_image_scale, self.clipped_y0 // self.side_image_scale), (self.clipped_x1 // self.side_image_scale, self.clipped_y1 // self.side_image_scale))
+        rectangle(side_image, (self.clipped_abs_x0 // self.side_image_scale, self.clipped_abs_y0 // self.side_image_scale), (self.clipped_abs_x1 // self.side_image_scale, self.clipped_abs_y1 // self.side_image_scale))
         put_text(side_image, f"Zoom: {self.zoom_scale:.2f}", font_scale=0.5, color=(0, 0, 255))
         if self.mouse_x and self.mouse_y:
             put_text(side_image, f"({self.mouse_x:>5}, {self.mouse_y:>5})", (0, 40), font_scale=0.5, color=(0, 0, 0))
