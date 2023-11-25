@@ -44,8 +44,8 @@ class LargeImageViewer:
         self.zoom_max: float = 10 * repr_ratio
 
         self.delta = 0.7
-        self.x: int = self.width // 2
-        self.y: int = self.height // 2
+        self.image_abs_x: int = self.width // 2
+        self.image_abs_y: int = self.height // 2
 
         self.mouse_x: Optional[int] = None
         self.mouse_y: Optional[int] = None
@@ -61,35 +61,35 @@ class LargeImageViewer:
 
     @property
     def left_pad(self) -> int:
-        return max(0, -self.raw_x0)
+        return max(0, -self.image_abs_x0)
 
     @property
     def top_pad(self) -> int:
-        return max(0, -self.raw_y0)
+        return max(0, -self.image_abs_y0)
 
     @property
     def right_pad(self) -> int:
-        return max(0, self.raw_x1 - self.width + 1)
+        return max(0, self.image_abs_x1 - self.width + 1)
 
     @property
     def bottom_pad(self) -> int:
-        return max(0, self.raw_y1 - self.height + 1)
+        return max(0, self.image_abs_y1 - self.height + 1)
 
     @property
-    def raw_x0(self) -> int:
-        return self.x - int(self.max_canvas_width * self.scale)
+    def image_abs_x0(self) -> int:
+        return self.image_abs_x - int(self.max_canvas_width * self.scale)
 
     @property
-    def raw_x1(self) -> int:
-        return self.x + int(self.max_canvas_width * self.scale)
+    def image_abs_x1(self) -> int:
+        return self.image_abs_x + int(self.max_canvas_width * self.scale)
 
     @property
-    def raw_y0(self) -> int:
-        return self.y - int(self.max_canvas_height * self.scale)
+    def image_abs_y0(self) -> int:
+        return self.image_abs_y - int(self.max_canvas_height * self.scale)
 
     @property
-    def raw_y1(self) -> int:
-        return self.y + int(self.max_canvas_height * self.scale)
+    def image_abs_y1(self) -> int:
+        return self.image_abs_y + int(self.max_canvas_height * self.scale)
 
     @property
     def scale(self) -> float:
@@ -100,19 +100,19 @@ class LargeImageViewer:
 
     @property
     def x0(self) -> int:
-        return clip(self.raw_x0, 0, self.width - 1)
+        return clip(self.image_abs_x0, 0, self.width - 1)
 
     @property
     def y0(self) -> int:
-        return clip(self.raw_y0, 0, self.height - 1)
+        return clip(self.image_abs_y0, 0, self.height - 1)
 
     @property
     def x1(self) -> int:
-        return clip(self.raw_x1, 0, self.width - 1)
+        return clip(self.image_abs_x1, 0, self.width - 1)
 
     @property
     def y1(self) -> int:
-        return clip(self.raw_y1, 0, self.height - 1)
+        return clip(self.image_abs_y1, 0, self.height - 1)
 
     @property
     def height(self) -> int:
@@ -138,28 +138,28 @@ class LargeImageViewer:
     def is_wide(self) -> bool:
         return self.ar > 1
 
-    def mouse_cb(self, event: int, local_x: int, local_y: int, flags: int, param: Any):
-        raw_x = self.local_x_to_raw(local_x)
-        raw_y = self.local_y_to_raw(local_y)
+    def mouse_cb(self, event: int, canvas_abs_x: int, canvas_abs_y: int, flags: int, param: Any):
+        image_abs_x = self.canvas_abs_x_to_image_abs(canvas_abs_x)
+        image_abs_y = self.canvas_abs_y_to_image_abs(canvas_abs_y)
         if event == cv2.EVENT_LBUTTONDOWN:
-            self.x = raw_x
-            self.y = raw_y
+            self.image_abs_x = image_abs_x
+            self.image_abs_y = image_abs_y
 
-            self.mouse_x = raw_x
-            self.mouse_y = raw_y
+            self.mouse_x = image_abs_x
+            self.mouse_y = image_abs_y
         elif event == cv2.EVENT_MOUSEMOVE:
-            self.mouse_x = raw_x
-            self.mouse_y = raw_y
+            self.mouse_x = image_abs_x
+            self.mouse_y = image_abs_y
 
     def manage_input(self, input_type: Input):
         if input_type == Input.MOVE_UP:
-            self.y = clip(self.y - int(self.delta * self.max_canvas_height * self.scale), 0, self.height)
+            self.image_abs_y = clip(self.image_abs_y - int(self.delta * self.max_canvas_height * self.scale), 0, self.height)
         elif input_type == Input.MOVE_LEFT:
-            self.x = clip(self.x - int(self.delta * self.max_canvas_width * self.scale), 0, self.width)
+            self.image_abs_x = clip(self.image_abs_x - int(self.delta * self.max_canvas_width * self.scale), 0, self.width)
         elif input_type == Input.MOVE_DOWN:
-            self.y = clip(self.y + int(self.delta * self.max_canvas_height * self.scale), 0, self.height)
+            self.image_abs_y = clip(self.image_abs_y + int(self.delta * self.max_canvas_height * self.scale), 0, self.height)
         elif input_type == Input.MOVE_RIGHT:
-            self.x = clip(self.x + int(self.delta * self.max_canvas_width * self.scale), 0, self.width)
+            self.image_abs_x = clip(self.image_abs_x + int(self.delta * self.max_canvas_width * self.scale), 0, self.width)
 
         elif input_type == Input.ZOOM_IN:
             self.zoom_scale = clip(self.zoom_scale * self.zoom_delta, self.zoom_min, self.zoom_max)
@@ -195,17 +195,17 @@ class LargeImageViewer:
         cv2.namedWindow(self.side_window)
         cv2.setWindowTitle(self.side_window, self.side_window_title)
 
-    def local_x_to_raw(self, local_x: int) -> int:
-        return self.raw_x0 + int(local_x * 2 * self.scale)
+    def canvas_abs_x_to_image_abs(self, canvas_abs_x: int) -> int:
+        return self.image_abs_x0 + int(canvas_abs_x * 2 * self.scale)
 
-    def local_y_to_raw(self, local_y: int) -> int:
-        return self.raw_y0 + int(local_y * 2 * self.scale)
+    def canvas_abs_y_to_image_abs(self, canvas_abs_y: int) -> int:
+        return self.image_abs_y0 + int(canvas_abs_y * 2 * self.scale)
 
-    def raw_x_to_local(self, raw_x: int) -> int:
-        return int((raw_x - self.raw_x0) / (2 * self.scale))
+    def image_abs_x_to_canvas_abs(self, image_abs_x: int) -> int:
+        return int((image_abs_x - self.image_abs_x0) / (2 * self.scale))
 
-    def raw_y_to_local(self, raw_y: int) -> int:
-        return int((raw_y - self.raw_y0) / (2 * self.scale))
+    def image_abs_y_to_canvas_abs(self, image_abs_y: int) -> int:
+        return int((image_abs_y - self.image_abs_y0) / (2 * self.scale))
 
     def pad_crop(self, crop) -> np.ndarray:
         padded_image = cv2.copyMakeBorder(crop, self.top_pad, self.bottom_pad, self.left_pad, self.right_pad, cv2.BORDER_CONSTANT, value=(0, 0, 255))
