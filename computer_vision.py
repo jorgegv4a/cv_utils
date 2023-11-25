@@ -197,7 +197,7 @@ def put_text(img, text, org=None, font_face=None, font_scale=None, color=None, t
         org = (0, text_h)
         text_h *= 2
     else:
-        org = [int(x) for x in org]
+        org = tuple([int(x) for x in org])
 
     cv2.putText(img, text, org, font_face, font_scale, color, thickness, line_type)
 
