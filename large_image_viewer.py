@@ -36,10 +36,12 @@ class LargeImageViewer:
         self.max_canvas_height: int = canvas_height
         self.max_canvas_width: int = canvas_width
 
+        repr_ratio = max(self.full_image.shape) / max(self.max_canvas_width, self.max_canvas_height)
+
         self.zoom_scale: float = 1
         self.zoom_delta: float = 1.25
-        self.zoom_min: float = 0.5
-        self.zoom_max: float = 10
+        self.zoom_min: float = 1 / repr_ratio
+        self.zoom_max: float = 10 * repr_ratio
 
         self.delta = 0.7
         self.x: int = self.width // 2
