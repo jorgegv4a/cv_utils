@@ -31,8 +31,8 @@ class LargeImageViewer:
     def __init__(self, full_image: np.ndarray, canvas_height: int, canvas_width: int, window_title: Optional[str] = None):
         self.full_image: np.ndarray = full_image
 
-        self.side_image_scale = max(self.full_image.shape) / 800
-        self.mini_image: np.ndarray = cv2.resize(full_image, None, fx=1 / self.side_image_scale, fy=1 / self.side_image_scale)
+        self.mini_image_scale = max(self.full_image.shape) / 800
+        self.mini_image: np.ndarray = cv2.resize(full_image, None, fx=1 / self.mini_image_scale, fy=1 / self.mini_image_scale)
 
         self.max_canvas_height: int = canvas_height
         self.max_canvas_width: int = canvas_width
@@ -42,7 +42,7 @@ class LargeImageViewer:
         self.zoom_scale: float = 1
         self.zoom_delta: float = 1.25
         self.zoom_min: float = 1 / self.ar_scale
-        self.zoom_max: float = 10 * self.ar_scale
+        self.zoom_max: float = 100 * self.ar_scale
 
         self.zoom_dynamic_range: float = self.zoom_max / self.zoom_min
         self.mipmaps: List[np.ndarray] = [self.full_image.copy()]
@@ -60,9 +60,9 @@ class LargeImageViewer:
         self.background_color = 255 if len(full_image.shape) < 3 else (0, 80, 0)
 
         self.window: str = None
-        self.side_window: str = None
+        self.mini_window: str = None
         self.window_title: str = None
-        self.side_window_title: str = None
+        self.mini_window_title: str = None
         self.init_window(window_title)
 
     @property
@@ -174,6 +174,14 @@ class LargeImageViewer:
         return self.height // 2
 
     @property
+    def mini_height(self) -> int:
+        return self.mini_image.shape[0]
+
+    @property
+    def mini_width(self) -> int:
+        return self.mini_image.shape[1]
+
+    @property
     def ar(self) -> float:
         return self.width / self.height
 
@@ -189,15 +197,33 @@ class LargeImageViewer:
     def mip_level(self) -> int:
         return np.round(self.normal_zoom_level ** 3 * (len(self.mipmaps) - 1)).astype(int)
 
+    def recenter_canvas_view(self, x: float, y: float):
+        self.image_x = x
+        self.image_y = y
+
     def mouse_cb(self, event: int, canvas_abs_x: int, canvas_abs_y: int, flags: int, param: Any):
         if event == cv2.EVENT_LBUTTONDOWN:
-            self.image_x = self.canvas_abs_x_to_image_x(canvas_abs_x)
-            self.image_y = self.canvas_abs_y_to_image_y(canvas_abs_y)
-            self.mouse_x = self.image_x
-            self.mouse_y = self.image_y
+            new_x = self.canvas_abs_x_to_image_x(canvas_abs_x)
+            new_y = self.canvas_abs_y_to_image_y(canvas_abs_y)
+            self.mouse_x = new_x
+            self.mouse_y = new_y
+            self.recenter_canvas_view(new_x, new_y)
         elif event == cv2.EVENT_MOUSEMOVE:
             self.mouse_x = self.canvas_abs_x_to_image_abs_x(canvas_abs_x)
             self.mouse_y = self.canvas_abs_y_to_image_abs_y(canvas_abs_y)
+
+    def mini_window_mouse_cb(self, event: int, mini_abs_x: int, mini_abs_y: int, flags: int, param: Any):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            new_x = self.mini_window_abs_x_to_image_x(mini_abs_x)
+            new_y = self.mini_window_abs_y_to_image_y(mini_abs_y)
+            self.recenter_canvas_view(new_x, new_y)
+        elif event == cv2.EVENT_MOUSEMOVE:
+            mini_abs_x = clip(mini_abs_x, 0, self.mini_width - 1)
+            mini_abs_y = clip(mini_abs_y, 0, self.mini_height - 1)
+            if flags & cv2.EVENT_FLAG_LBUTTON:
+                new_x = self.mini_window_abs_x_to_image_x(mini_abs_x)
+                new_y = self.mini_window_abs_y_to_image_y(mini_abs_y)
+                self.recenter_canvas_view(new_x, new_y)
 
     def manage_input(self, input_type: Input):
         if input_type == Input.MOVE_UP:
@@ -233,15 +259,16 @@ class LargeImageViewer:
         if window_title is None:
             self.window_title = "Image Viewer"
 
-        self.side_window = f"[Side] Image Viewer {uuid.uuid4()}"
+        self.mini_window = f"[Mini] Image Viewer {uuid.uuid4()}"
         if window_title is None:
-            self.side_window_title = "[Side] Image Viewer"
+            self.mini_window_title = "[Mini] Image Viewer"
         cv2.namedWindow(self.window)
         cv2.setWindowTitle(self.window, self.window_title)
         cv2.setMouseCallback(self.window, self.mouse_cb)
 
-        cv2.namedWindow(self.side_window)
-        cv2.setWindowTitle(self.side_window, self.side_window_title)
+        cv2.namedWindow(self.mini_window)
+        cv2.setWindowTitle(self.mini_window, self.mini_window_title)
+        cv2.setMouseCallback(self.mini_window, self.mini_window_mouse_cb)
 
     def canvas_abs_x_to_image_abs_x(self, canvas_abs_x: int) -> int:
         return self.image_abs_x0 + int(canvas_abs_x * self.scale)
@@ -260,6 +287,18 @@ class LargeImageViewer:
 
     def image_abs_y_to_canvas_abs(self, image_abs_y: int) -> int:
         return int((image_abs_y - self.image_abs_y0) / self.scale)
+
+    def mini_window_abs_x_to_image_abs_x(self, mini_window_abs_x: int) -> int:
+        return int(self.mini_window_abs_x_to_image_x(mini_window_abs_x) * self.width)
+
+    def mini_window_abs_x_to_image_x(self, mini_window_abs_x: int) -> float:
+        return mini_window_abs_x / self.mini_width
+
+    def mini_window_abs_y_to_image_abs_y(self, mini_window_abs_y: int) -> int:
+        return int(self.mini_window_abs_y_to_image_y(mini_window_abs_y) * self.height)
+
+    def mini_window_abs_y_to_image_y(self, mini_window_abs_y: int) -> float:
+        return mini_window_abs_y / self.mini_height
 
     def get_viewing_crop(self, image: np.ndarray) -> np.ndarray:
         height, width = image.shape[:2]
@@ -280,7 +319,7 @@ class LargeImageViewer:
         right_pad = max(0, abs_x1 - width + 1)
         bottom_pad = max(0, abs_y1 - height + 1)
 
-        padded_image = cv2.copyMakeBorder(crop, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT, value=(0, 0, 255))
+        padded_image = cv2.copyMakeBorder(crop, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT, value=(0, 0, 0))
 
         return padded_image
 
@@ -293,12 +332,12 @@ class LargeImageViewer:
         view_image = interp_2d_to_new_shape(crop, (view_height, view_width), order=self.interp_order)
         showable_image = view_image
 
-        side_image = self.mini_image.copy()
-        rectangle(side_image, (self.clipped_abs_x0 // self.side_image_scale, self.clipped_abs_y0 // self.side_image_scale), (self.clipped_abs_x1 // self.side_image_scale, self.clipped_abs_y1 // self.side_image_scale))
-        put_text(side_image, f"Zoom: {self.zoom_scale:.2f} | Mip: {self.mip_level}", font_scale=0.5, color=(0, 0, 255))
+        mini_image = self.mini_image.copy()
+        rectangle(mini_image, (self.clipped_abs_x0 // self.mini_image_scale, self.clipped_abs_y0 // self.mini_image_scale), (self.clipped_abs_x1 // self.mini_image_scale, self.clipped_abs_y1 // self.mini_image_scale))
+        put_text(mini_image, f"Zoom: {self.zoom_scale:.2f} | Mip: {self.mip_level}", font_scale=0.5, color=(0, 0, 255))
         if self.mouse_x and self.mouse_y:
-            put_text(side_image, f"({self.mouse_x:>5}, {self.mouse_y:>5})", (0, 40), font_scale=0.5, color=(0, 0, 0))
-        cv2.imshow(self.side_window, side_image)
+            put_text(mini_image, f"({self.mouse_x:>5}, {self.mouse_y:>5})", (0, 40), font_scale=0.5, color=(0, 0, 0))
+        cv2.imshow(self.mini_window, mini_image)
 
         cv2.imshow(self.window, showable_image)
         key = cv2.waitKey(1)
@@ -306,7 +345,6 @@ class LargeImageViewer:
 
 
 def main():
-    # sample_img = cv2.imread("/home/mojonero/PycharmProjects/lukeScrolls/monster/slices/40_v.tif")
     sample_img = cv2.imread("checkerboard_v.png")
     viewer = LargeImageViewer(sample_img, 800, 1024)
     while True:
