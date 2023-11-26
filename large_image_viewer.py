@@ -30,8 +30,6 @@ class LargeImageViewer:
     """
     def __init__(self, full_image: np.ndarray, canvas_height: int, canvas_width: int, window_title: Optional[str] = None):
         self.full_image: np.ndarray = full_image
-        self.high_res_image: np.ndarray = full_image.copy()
-        self.low_res_image: np.ndarray = cv2.pyrDown(cv2.pyrDown(cv2.pyrDown(cv2.pyrDown(full_image))))
 
         self.side_image_scale = max(self.full_image.shape) / 800
         self.mini_image: np.ndarray = cv2.resize(full_image, None, fx=1 / self.side_image_scale, fy=1 / self.side_image_scale)
@@ -45,6 +43,11 @@ class LargeImageViewer:
         self.zoom_delta: float = 1.25
         self.zoom_min: float = 1 / self.ar_scale
         self.zoom_max: float = 10 * self.ar_scale
+
+        self.zoom_dynamic_range: float = self.zoom_max / self.zoom_min
+        self.mipmaps: List[np.ndarray] = [self.full_image.copy()]
+        for i in range(1, np.floor(np.log2(self.zoom_dynamic_range) - 1).astype(int)):
+            self.mipmaps.append(cv2.pyrDown(self.mipmaps[-1]).copy())
 
         self.delta = 0.7
         self.image_x: float = 0.5
@@ -178,6 +181,14 @@ class LargeImageViewer:
     def is_wide(self) -> bool:
         return self.ar > 1
 
+    @property
+    def normal_zoom_level(self) -> float:
+        return 1 - ((np.log2(self.zoom_scale) - np.log2(self.zoom_min)) / (np.log2(self.zoom_max) - np.log2(self.zoom_min)))
+
+    @property
+    def mip_level(self) -> int:
+        return np.round(self.normal_zoom_level ** 3 * (len(self.mipmaps) - 1)).astype(int)
+
     def mouse_cb(self, event: int, canvas_abs_x: int, canvas_abs_y: int, flags: int, param: Any):
         if event == cv2.EVENT_LBUTTONDOWN:
             self.image_x = self.canvas_abs_x_to_image_x(canvas_abs_x)
@@ -273,25 +284,18 @@ class LargeImageViewer:
 
         return padded_image
 
-    def pad_crop(self, crop) -> np.ndarray:
-        padded_image = cv2.copyMakeBorder(crop, self.top_pad, self.bottom_pad, self.left_pad, self.right_pad, cv2.BORDER_CONSTANT, value=(0, 0, 255))
-        return padded_image
-
     def display(self):
         view_width = self.max_canvas_width
         view_height = self.max_canvas_height
 
-        if self.zoom_scale > 6:
-            crop = self.get_viewing_crop(self.high_res_image)
-        else:
-            crop = self.get_viewing_crop(self.low_res_image)
+        crop = self.get_viewing_crop(self.mipmaps[self.mip_level])
 
         view_image = interp_2d_to_new_shape(crop, (view_height, view_width), order=self.interp_order)
         showable_image = view_image
 
         side_image = self.mini_image.copy()
         rectangle(side_image, (self.clipped_abs_x0 // self.side_image_scale, self.clipped_abs_y0 // self.side_image_scale), (self.clipped_abs_x1 // self.side_image_scale, self.clipped_abs_y1 // self.side_image_scale))
-        put_text(side_image, f"Zoom: {self.zoom_scale:.2f}", font_scale=0.5, color=(0, 0, 255))
+        put_text(side_image, f"Zoom: {self.zoom_scale:.2f} | Mip: {self.mip_level}", font_scale=0.5, color=(0, 0, 255))
         if self.mouse_x and self.mouse_y:
             put_text(side_image, f"({self.mouse_x:>5}, {self.mouse_y:>5})", (0, 40), font_scale=0.5, color=(0, 0, 0))
         cv2.imshow(self.side_window, side_image)
@@ -302,7 +306,8 @@ class LargeImageViewer:
 
 
 def main():
-    sample_img = cv2.imread("/home/mojonero/PycharmProjects/lukeScrolls/monster/slices/40.tif")
+    # sample_img = cv2.imread("/home/mojonero/PycharmProjects/lukeScrolls/monster/slices/40_v.tif")
+    sample_img = cv2.imread("checkerboard_v.png")
     viewer = LargeImageViewer(sample_img, 800, 1024)
     while True:
         viewer.display()
