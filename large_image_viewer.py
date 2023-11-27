@@ -91,35 +91,35 @@ class LargeImageViewer:
 
     @property
     def image_abs_x0(self) -> int:
-        return self.image_abs_x - int(self.max_canvas_width * self.scale / 2)
+        return int(self.image_x0 * self.width)
 
     @property
     def image_abs_x1(self) -> int:
-        return self.image_abs_x + int(self.max_canvas_width * self.scale / 2)
+        return int(self.image_x1 * self.width)
 
     @property
     def image_abs_y0(self) -> int:
-        return self.image_abs_y - int(self.max_canvas_height * self.scale / 2)
+        return int(self.image_y0 * self.height)
 
     @property
     def image_abs_y1(self) -> int:
-        return self.image_abs_y + int(self.max_canvas_height * self.scale / 2)
+        return int(self.image_y1 * self.height)
 
     @property
     def image_x0(self) -> float:
-        return self.image_abs_x0 / self.width
+        return self.image_x - ((self.max_canvas_width * self.ar_scale / self.zoom_scale) / self.width) / 2
 
     @property
     def image_y0(self) -> float:
-        return self.image_abs_y0 / self.height
+        return self.image_y - ((self.max_canvas_height * self.ar_scale / self.zoom_scale) / self.height) / 2
 
     @property
     def image_x1(self) -> float:
-        return self.image_abs_x1 / self.width
+        return self.image_x + ((self.max_canvas_width * self.ar_scale / self.zoom_scale) / self.width) / 2
 
     @property
     def image_y1(self) -> float:
-        return self.image_abs_y1 / self.height
+        return self.image_y + ((self.max_canvas_height * self.ar_scale / self.zoom_scale) / self.height) / 2
 
     @property
     def scale(self) -> float:
@@ -158,6 +158,14 @@ class LargeImageViewer:
         return clip(self.image_abs_y1, 0, self.height - 1)
 
     @property
+    def sampled_width(self) -> int:
+        return self.image_abs_x1 - self.image_abs_x0 + 1
+
+    @property
+    def sampled_height(self) -> int:
+        return self.image_abs_y1 - self.image_abs_y0 + 1
+
+    @property
     def height(self) -> int:
         return self.full_image.shape[0]
 
@@ -190,12 +198,9 @@ class LargeImageViewer:
         return self.ar > 1
 
     @property
-    def normal_zoom_level(self) -> float:
-        return 1 - ((np.log2(self.zoom_scale) - np.log2(self.zoom_min)) / (np.log2(self.zoom_max) - np.log2(self.zoom_min)))
-
-    @property
     def mip_level(self) -> int:
-        return np.round(self.normal_zoom_level ** 3 * (len(self.mipmaps) - 1)).astype(int)
+        # essentially, get how many times we need to divide the image by 2 to get to the max canvas size
+        return max(0, np.min(np.floor(np.log2(np.array([self.sampled_width, self.sampled_height]) / np.array([self.max_canvas_width, self.max_canvas_height])))).astype(int))
 
     def recenter_canvas_view(self, x: float, y: float):
         self.image_x = x
