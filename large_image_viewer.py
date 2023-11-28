@@ -3,8 +3,7 @@ import uuid
 import cv2
 
 from enum import Enum, auto
-from threading import Thread
-from typing import Tuple, Optional, List, Any
+from typing import Optional, List, Any
 
 from math_utils import clip
 from computer_vision import imshow, interp_2d_to_new_shape, rectangle, put_text
@@ -59,6 +58,8 @@ class LargeImageViewer:
         self.interp_order = 0
         self.background_color = 255 if len(full_image.shape) < 3 else (0, 80, 0)
 
+        self.last_frame_pos = None
+
         self.window: str = None
         self.mini_window: str = None
         self.window_title: str = None
@@ -72,22 +73,6 @@ class LargeImageViewer:
     @property
     def image_abs_y(self) -> int:
         return int(self.image_y * self.height)
-
-    @property
-    def left_pad(self) -> int:
-        return max(0, -self.image_abs_x0)
-
-    @property
-    def top_pad(self) -> int:
-        return max(0, -self.image_abs_y0)
-
-    @property
-    def right_pad(self) -> int:
-        return max(0, self.image_abs_x1 - self.width + 1)
-
-    @property
-    def bottom_pad(self) -> int:
-        return max(0, self.image_abs_y1 - self.height + 1)
 
     @property
     def image_abs_x0(self) -> int:
@@ -194,10 +179,6 @@ class LargeImageViewer:
         return self.width / self.height
 
     @property
-    def is_wide(self) -> bool:
-        return self.ar > 1
-
-    @property
     def mip_level(self) -> int:
         # essentially, get how many times we need to divide the image by 2 to get to the max canvas size
         return max(0, np.min(np.floor(np.log2(np.array([self.sampled_width, self.sampled_height]) / np.array([self.max_canvas_width, self.max_canvas_height])))).astype(int))
@@ -210,12 +191,26 @@ class LargeImageViewer:
         if event == cv2.EVENT_LBUTTONDOWN:
             new_x = self.canvas_abs_x_to_image_x(canvas_abs_x)
             new_y = self.canvas_abs_y_to_image_y(canvas_abs_y)
+            self.last_frame_pos = (new_x, new_y)
+        #     new_x = self.canvas_abs_x_to_image_x(canvas_abs_x)
+        #     new_y = self.canvas_abs_y_to_image_y(canvas_abs_y)
+        #     self.mouse_x = new_x
+        #     self.mouse_y = new_y
+        #     self.recenter_canvas_view(new_x, new_y)
+        elif event == cv2.EVENT_MOUSEMOVE:
+            new_x = self.canvas_abs_x_to_image_x(canvas_abs_x)
+            new_y = self.canvas_abs_y_to_image_y(canvas_abs_y)
+            if flags & cv2.EVENT_FLAG_LBUTTON:
+                if self.last_frame_pos is not None:
+                    delta_x = new_x - self.last_frame_pos[0]
+                    delta_y = new_y - self.last_frame_pos[1]
+                    self.image_x -= delta_x
+                    self.image_y -= delta_y
+                else:
+                    self.last_frame_pos = (new_x, new_y)
+
             self.mouse_x = new_x
             self.mouse_y = new_y
-            self.recenter_canvas_view(new_x, new_y)
-        elif event == cv2.EVENT_MOUSEMOVE:
-            self.mouse_x = self.canvas_abs_x_to_image_abs_x(canvas_abs_x)
-            self.mouse_y = self.canvas_abs_y_to_image_abs_y(canvas_abs_y)
 
     def mini_window_mouse_cb(self, event: int, mini_abs_x: int, mini_abs_y: int, flags: int, param: Any):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -341,7 +336,7 @@ class LargeImageViewer:
         rectangle(mini_image, (self.clipped_abs_x0 // self.mini_image_scale, self.clipped_abs_y0 // self.mini_image_scale), (self.clipped_abs_x1 // self.mini_image_scale, self.clipped_abs_y1 // self.mini_image_scale))
         put_text(mini_image, f"Zoom: {self.zoom_scale:.2f} | Mip: {self.mip_level}", font_scale=0.5, color=(0, 0, 255))
         if self.mouse_x and self.mouse_y:
-            put_text(mini_image, f"({self.mouse_x:>5}, {self.mouse_y:>5})", (0, 40), font_scale=0.5, color=(0, 0, 0))
+            put_text(mini_image, f"({self.mouse_x:.5f}, {self.mouse_y:.5f})", (0, 40), font_scale=0.5, color=(0, 0, 255))
         cv2.imshow(self.mini_window, mini_image)
 
         cv2.imshow(self.window, showable_image)
