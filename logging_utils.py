@@ -1,5 +1,8 @@
 import time
+import random
+import inspect
 import logging
+import logging.config
 import numpy as np
 
 from queue import LifoQueue, Empty
@@ -9,24 +12,88 @@ from logging.handlers import RotatingFileHandler
 from general import txt
 
 
-def get_logger(name=__name__, logfile="logfile.log"):
-    logging.basicConfig(
-         filename=logfile,
-         level=logging.DEBUG,
-         format= '[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
-         datefmt='%H:%M:%S'
-     )
+class MaxLevelFilter(logging.Filter):
+    """A filter to allow only log messages below a specified level."""
+    def __init__(self, level):
+        super().__init__()
+        self.max_level = level
 
-    handler = RotatingFileHandler(logfile, maxBytes=1024*1024*4, backupCount=1)
-    logging.getLogger('').addHandler(handler)
-    console = logging.StreamHandler()
-    console.setLevel(logging.DEBUG)
-    # set a format which is simpler for console use
-    formatter = logging.Formatter('[%(name)-12s] %(levelname)-8s| %(asctime)s | %(message)s')
-    console.setFormatter(formatter)
-    # add the handler to the root logger
-    logging.getLogger('').addHandler(console)
-    return logging.getLogger(name)
+    def filter(self, record):
+        return record.levelno < self.max_level
+
+
+def get_logger(name=None, logfile=f"logfile.log", color=None):
+    if color is None:
+        color = random.choice("mygbrw")
+    if name is None:
+        stack = inspect.stack()
+        caller_frame = stack[1]  # The frame of the caller
+        module = inspect.getmodule(caller_frame[0])
+        name = module.__name__
+
+    name = txt(f"%{color}  {name}")
+    logger = logging.getLogger(name)
+    logging_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "simple": {
+                "format": "[%(name)-12s] %(levelname)-8s| %(asctime)s | %(message)s"
+            }
+        },
+        "filters": {
+            "below_warning": {
+                "()": MaxLevelFilter,
+                "level": logging.WARNING
+            }
+        },
+        "handlers": {
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout",
+              "filters": ["below_warning"]
+            },
+            "stderr": {
+                "class": "logging.StreamHandler",
+                "level": "WARNING",
+                "formatter": "simple",
+                "stream": "ext://sys.stderr"
+            },
+            "file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "filename": logfile,
+                "mode": "w",
+                "maxBytes": 1024*1024*80,
+            }
+        },
+        "loggers": {
+            "": {
+                "level": "WARNING",
+                "handlers": [
+                    "stderr",
+                    "stdout",
+                    "file"
+                ]
+            },
+            name: {
+                "level": "DEBUG",
+                "handlers": [
+                    "stderr",
+                    "stdout",
+                    "file"
+                ],
+                "propagate": False
+            }
+        }
+    }
+
+    logging.config.dictConfig(config=logging_config)
+    return logger
+
 
 
 exponent_map = {
@@ -108,7 +175,6 @@ class TimedItem:
 
     def __str__(self):
         return self.__repr__()
-
 
 
 class TimedBlock:
