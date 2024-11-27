@@ -23,15 +23,15 @@ class MaxLevelFilter(logging.Filter):
 
 
 def get_logger(name=None, logfile=f"logfile.log", color=None):
-    if color is None:
+    if color:
         color = random.choice("mygbrw")
     if name is None:
         stack = inspect.stack()
         caller_frame = stack[1]  # The frame of the caller
         module = inspect.getmodule(caller_frame[0])
         name = module.__name__
-
-    name = txt(f"%{color}  {name}")
+    if color:
+        name = txt(f"%{color}  {name}")
     logger = logging.getLogger(name)
     logging_config = {
         "version": 1,
@@ -68,6 +68,11 @@ def get_logger(name=None, logfile=f"logfile.log", color=None):
                 "filename": logfile,
                 "mode": "w",
                 "maxBytes": 1024*1024*80,
+            },
+            "telegram": {
+                "class": "telegram.TelegramHandler",
+                "level": "ERROR",
+                "formatter": "simple",
             }
         },
         "loggers": {
@@ -76,15 +81,16 @@ def get_logger(name=None, logfile=f"logfile.log", color=None):
                 "handlers": [
                     "stderr",
                     "stdout",
-                    "file"
+                    "file",
                 ]
             },
             name: {
                 "level": "DEBUG",
                 "handlers": [
+                    "telegram",
                     "stderr",
                     "stdout",
-                    "file"
+                    "file",
                 ],
                 "propagate": False
             }
@@ -264,3 +270,17 @@ if __name__ == "__main__":
     TimedBlock.stats()
     logger.debug("-")
     TimedBlock.stats("Child A")
+
+    logger.info("Info")
+    time.sleep(0.1)
+    logger.debug("Debug")
+    time.sleep(0.1)
+    logger.warning("Warning")
+    time.sleep(0.1)
+    try:
+        x = 1/0
+    except Exception as e:
+        logger.exception("Exception")
+    time.sleep(0.1)
+    logger.error("Error")
+    logger.critical("Critical")
