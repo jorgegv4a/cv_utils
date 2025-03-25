@@ -1,9 +1,8 @@
 import os
 import logging
 import pprint
-import traceback
 import threading
-from queue import Queue, Empty
+from queue import Queue
 
 from web import safe_get, RateLimitedRequest
 

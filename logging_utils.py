@@ -7,7 +7,6 @@ import numpy as np
 
 from queue import LifoQueue, Empty
 from typing import Optional, List, Dict
-from logging.handlers import RotatingFileHandler
 
 from general import txt
 
@@ -38,7 +37,10 @@ def get_logger(name=None, logfile=f"logfile.log", color=None):
         "disable_existing_loggers": False,
         "formatters": {
             "simple": {
-                "format": "[%(name)-12s] %(levelname)-8s| %(asctime)s | %(message)s"
+                "format": "[%(module)-16s] %(levelname)-8s| %(asctime)s | %(message)s"
+            },
+            "traceable_src": {
+                "format": f'[%(module)-16s] %(levelname)-8s| %(asctime)s | %(message)s \n{"": <19}File "%(pathname)s", line %(lineno)d in %(funcName)s'
             }
         },
         "filters": {
@@ -58,7 +60,8 @@ def get_logger(name=None, logfile=f"logfile.log", color=None):
             "stderr": {
                 "class": "logging.StreamHandler",
                 "level": "WARNING",
-                "formatter": "simple",
+                # "formatter": "simple",
+                "formatter": "traceable_src",
                 "stream": "ext://sys.stderr"
             },
             "file": {
@@ -69,11 +72,11 @@ def get_logger(name=None, logfile=f"logfile.log", color=None):
                 "mode": "w",
                 "maxBytes": 1024*1024*80,
             },
-            "telegram": {
-                "class": "telegram.TelegramHandler",
-                "level": "ERROR",
-                "formatter": "simple",
-            }
+            # "telegram": {
+            #     "class": "telegram.TelegramHandler",
+            #     "level": "ERROR",
+            #     "formatter": "simple",
+            # }
         },
         "loggers": {
             "": {
@@ -87,7 +90,7 @@ def get_logger(name=None, logfile=f"logfile.log", color=None):
             name: {
                 "level": "DEBUG",
                 "handlers": [
-                    "telegram",
+                    # "telegram",
                     "stderr",
                     "stdout",
                     "file",
